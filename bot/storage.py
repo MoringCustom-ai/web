@@ -252,11 +252,11 @@ async def subscription_active(db, user_id: int) -> bool:
     sub = await get_subscription(db, user_id)
     if not sub:
         return False
-    return sub["status"] == "active" and datetime.fromisoformat(sub["end_date"]) > now()
+    return sub["status"] == "active" and parse_dt(sub["end_date"]) > now()
 
 
 async def days_left(sub: aiosqlite.Row) -> int:
-    delta = datetime.fromisoformat(sub["end_date"]) - now()
+    delta = parse_dt(sub["end_date"]) - now()
     return max(delta.days + (1 if delta.seconds else 0), 0)
 
 
@@ -267,7 +267,7 @@ async def activate_subscription(db, user_id: int, *, method: str, payment_id: st
     sub = await get_subscription(db, user_id)
     base = now()
     if sub and sub["status"] == "active" and extend_from:
-        base = max(base, datetime.fromisoformat(sub["end_date"]))
+        base = max(base, parse_dt(sub["end_date"]))
     end = base + timedelta(days=config.SUBSCRIPTION_DAYS)
     if sub:
         await db.execute(
@@ -481,9 +481,23 @@ async def list_pending_common(db, common_start_iso: str) -> list[aiosqlite.Row]:
 
 # ------------------------------------------------------------- analytics ----
 
+def parse_dt(s: str) -> datetime:
+    """Парсит ISO-строку любого формата, который мы сами пишем в БД:
+    'ГГГГ-ММ-ДД', 'ГГГГ-ММ-ДДTЧЧ:ММ:СС', с таймзоной или 'Z'.
+    Возвращает datetime с таймзоной (naive трактуем как UTC)."""
+    s = s.strip()
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=dt_timezone.utc)
+    return dt
+
+
 def current_day(start_iso: str) -> int:
     """Номер текущего дня челленджа: 1..N (день 1 = дата старта)."""
-    return (local_today() - date.fromisoformat(start_iso)).days + 1
+    return (local_today() - parse_dt(start_iso).date()).days + 1
 
 
 def compute_stats(marks: dict[int, tuple[int, str | None]], elapsed_days: int,

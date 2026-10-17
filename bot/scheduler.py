@@ -17,9 +17,9 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from .. import config, storage
-from ..services import chat_access, challenges as ch
-from . import user as user_handlers
+from bot import config, storage
+from bot.services import chat_access, challenges as ch
+from bot.handlers import user as user_handlers
 
 log = logging.getLogger(__name__)
 

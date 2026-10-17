@@ -128,7 +128,7 @@ async def check_completions(db, chal) -> bool:
     """Если 30 дней истекли — завершает челлендж. True, если завершён."""
     if chal["status"] != "running" or not chal["start_date"]:
         return False
-    start = date.fromisoformat(chal["start_date"])
+    start = storage.parse_dt(chal["start_date"]).date()
     today = storage.local_today()
     if (today - start).days >= config.CHALLENGE_DAYS:
         await storage.complete_challenge(db, chal["id"])
